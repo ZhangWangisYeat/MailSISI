@@ -1,0 +1,6 @@
+imap-tools==1.7.0
+PyYAML==6.0.2
+python-dotenv==1.0.1
+
+# Optional — only needed if responder.claude.enabled is true in config.yaml
+# anthropic>=0.40.0

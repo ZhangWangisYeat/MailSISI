@@ -1,0 +1,190 @@
+# MailSISI configuration.
+# Copy this file to config.yaml and fill in your own senders. Edit that copy to
+# add senders or change behavior. No code changes needed.
+
+# How often to poll when running with --daemon, in seconds.
+poll_interval: 300
+
+# Which mailbox folder to scan.
+mailbox_folder: INBOX
+
+# How far back to read. Two ways to set the cutoff (the setup window writes both):
+#   since_days  a rolling window: only read mail from the last N days, relative to
+#               today, so old mail drops off automatically. Good for steady state.
+#   since_date  a fixed calendar cutoff. When set it OVERRIDES since_days, which is
+#               how you reach back to fetch older files on demand.
+# With neither set, all mail is read. A fixed date mainly speeds up the first run.
+since_days: 30
+# since_date: 2026-01-01
+
+# Where downloaded files go.
+output_dir: C:/MailSISI/Downloads
+
+# SQLite database that tracks processed messages, threads, and file versions.
+db_path: ./mailsisi.db
+
+# The database stores only metadata (never file contents), so it stays small. As
+# a safety cap, when the messages table grows past db_max_messages the oldest
+# skipped (non-distributor) records are pruned and the file is compacted.
+# Downloaded files and distributor records are never touched. Set 0 to disable.
+db_max_messages: 20000
+
+# Logging.
+log_file: ./mailsisi.log
+log_max_bytes: 5242880   # 5 MB
+log_backup_count: 3
+
+# Naming and organization.
+# The naming template is applied to every saved file unless a distributor
+# below overrides it. Available tokens:
+#   {distributor} {manufacturer} {manufacturer__email_domain} {date} {send_date}
+#   {received} {stem} {ext} {original} {thread} {uid} {seq} {hash}
+#   manufacturer is the maker a file is for. It is resolved in this order and the
+#   first hit wins: the email subject, then the attachment filename, then the
+#   domain of any recipient that is not us or the distributor, then the email
+#   body; otherwise "unknown". See the senders section below.
+#   manufacturer__email_domain is the distributor/sender's email domain, e.g.
+#   gmail.com (named for its slot in the template; it is the sender's domain).
+#   date and send_date are both the email's sent date, formatted with date_format.
+#   received is the moment we downloaded the file.
+#   stem and ext are the original filename without and with its extension.
+#   thread is a short id for the email conversation.
+#   seq is the attachment number within the email, starting at 1.
+#   hash is the first 8 characters of the file's content hash.
+# Instead of a template, a distributor can set  naming_mode: manufacturer  which
+# keeps the original filename when the manufacturer name is already in it, and
+# otherwise prepends the manufacturer (or "unknown"). It ignores naming_template.
+naming_template: "{manufacturer}_{manufacturer__email_domain}_{send_date}_{distributor}_{stem}{ext}"
+date_format: "%m%Y"
+
+# Only download attachments with these extensions. Case does not matter.
+# Leave this empty or remove it to accept every attachment.
+allowed_extensions:
+  - xlsx
+  - xls
+  - csv
+  - txt
+
+# Folder layout under output_dir.
+# distributor              downloads/<distributor>/file
+# distributor_thread       downloads/<distributor>/<conversation>/file
+# distributor_manufacturer downloads/<distributor>/<manufacturer>/file
+# manufacturer             downloads/<manufacturer>/file
+# Files whose manufacturer could not be identified land under "unknown".
+grouping: distributor_manufacturer
+
+# Include the email's month-year in the manufacturer folder name (using
+# date_format), e.g. downloads/example-distributor/ACME_072026. Set to false for a
+# plain manufacturer folder (ACME). Only affects groupings that use the manufacturer.
+manufacturer_folder_date: true
+
+# Where a replaced file is moved when a newer reply supersedes it.
+# Use null to delete the old version instead of keeping it.
+superseded_dir: C:/MailSISI/Downloads/superseded
+
+# Sender whitelist. The whitelisted SENDER is the distributor: the person or
+# address that emails the files. It is NOT the manufacturer. Each entry needs a
+# distributor name plus at least one way to match the sender:
+#   email is a list of exact addresses.
+#   domain matches any address at that domain.
+#
+# Below each distributor is the list of manufacturers whose data it sends. For
+# each attachment we pick a manufacturer by scanning in this order and taking the
+# first hit:
+#   1. Subject   - a manufacturer name, alias, or id in the email subject.
+#   2. Filename  - a name, alias, or id in the attachment filename.
+#   3. Recipient - the email domain of any recipient (To/Cc) that is not us or the
+#                  distributor, matched against a manufacturer name (e.g. a file
+#                  cc'd to intake@acme.com resolves to ACME). Ids not used here.
+#   4. Body      - a name, alias, or id in the email body.
+#   5. Otherwise the manufacturer is "unknown".
+# Each match is exact first, then a close (rough) match so small typos still
+# resolve. The resolved manufacturer names the folder (with grouping: manufacturer)
+# and is available as the {manufacturer} token in a naming_template.
+#
+# A distributor can optionally override naming_template and grouping, and set
+#   fuzzy_threshold  how close a rough match must be, 0-1 (default 0.8; 0 = exact
+#                    matching only).
+#
+# Each manufacturer entry:
+#   name    the canonical name we look for (used to name the folder/file)
+#   aliases other spellings or names to look for (optional)
+#   ids     codes that stand in for the name, mapped back to it (optional),
+#           e.g. ids: [12345]
+# List more specific names first; the first match wins.
+senders:
+  # Match a distributor by one or more exact addresses.
+  - distributor: example-distributor
+    email:
+      - files@example-distributor.com
+    naming_mode: manufacturer   # keep original filenames; ignores naming_template
+    manufacturers:
+      # Matched by name: an attachment whose subject or filename contains "ACME"
+      # (roughly, so small typos still resolve) is an ACME file. Add aliases for
+      # other spellings, and ids for files that use a code instead of the name.
+      - name: ACME
+        aliases: ["Acme Medical"]
+      - name: Globex
+        ids: [12345]
+
+  # Or match every address at a domain, for senders whose address varies.
+  - distributor: example-wholesaler
+    domain: example-wholesaler.com
+    naming_mode: manufacturer
+    manufacturers:
+      - name: Initech
+        ids: [67890]
+
+# Auto-responder. Optional and off by default.
+responder:
+  enabled: false        # nothing happens unless this is true
+  send: false           # false only writes drafts to drafts_dir, it does not send
+  drafts_dir: ./responses
+  from_name: "Data Intake"
+
+  # SMTP is only used when send is true. Credentials come from .env.
+  smtp:
+    host: smtp.gmail.com
+    port: 587
+
+  # Rule-based triage. The first rule whose keywords appear in the subject or
+  # body wins.
+  rules:
+    - name: correction
+      contains: ["replace", "corrected", "updated file", "wrong file", "use this instead", "revised"]
+      template: |
+        Hi,
+
+        Thanks, we've received your updated file(s) and replaced the previous
+        version on our end. No further action is needed.
+
+        Best,
+        {from_name}
+
+    - name: missing_attachment
+      contains: ["attached", "see attached", "enclosed"]
+      requires_no_attachment: true   # only fires when the email had no attachment
+      template: |
+        Hi,
+
+        Thanks for your email. It looks like the attachment didn't come through
+        on our end. Could you please resend the file?
+
+        Best,
+        {from_name}
+
+  # Used when an email has attachments but no rule matched.
+  default_template: |
+    Hi,
+
+    Thanks, we've received your file(s) and they've been logged for processing.
+
+    Best,
+    {from_name}
+
+  # Optional Claude-powered triage. When enabled it overrides the rules above.
+  # Needs the anthropic package installed and ANTHROPIC_API_KEY set in .env.
+  claude:
+    enabled: false
+    model: claude-sonnet-4-6
+    max_tokens: 400

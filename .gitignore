@@ -1,0 +1,19 @@
+.env
+settings.yaml
+# Per-client config with real distributors and account ids. Start from
+# config.example.yaml instead.
+config.yaml
+# Local working notes; they reference real client data.
+CLAUDE.md
+downloads/
+responses/
+*.db
+*.log
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+*.exe
+.claude/settings.local.json
