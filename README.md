@@ -1,4 +1,4 @@
-# MailSISI
+# MailSISI - Version 1.0
 
 MailSISI watches an email inbox and automatically saves, renames, and sorts the
 file attachments your distributors send, turning a monthly pile of manual
@@ -59,7 +59,7 @@ Create a folder such as `C:\MailSISI` and copy **MailSISI.exe** and
 **config.yaml** into it. Keep them together, as MailSISI reads and writes
 everything (settings, logs, its file record) in this one folder.
 
-## 2. Get an app password
+## 2. Get an app password (will be updated to OAuth)
 
 Email providers require a one-time "app password" for apps like this instead of
 your normal password (this kicks in whenever two-step verification is on).
