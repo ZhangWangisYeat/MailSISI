@@ -8,7 +8,7 @@ It connects over IMAP, takes attachments only from a whitelist of distributor
 senders, works out which manufacturer each file belongs to, and files it
 accordingly. When a distributor emails a corrected version, that file replaces
 the old one and the previous version is kept aside. Nothing on the mail server
-is ever changed — no deleting, moving, or marking as read — and every run
+is ever actually changed: no deleting, moving, or marking as read. Every run
 remembers what it already handled, so running it twice costs nothing.
 
 Python, SQLite, IMAP, Tkinter, packaged with PyInstaller. No Python needed on the
@@ -56,7 +56,7 @@ That's it. The rest of this page explains each step in more detail.
 ## 1. Put the files in a folder
 
 Create a folder such as `C:\MailSISI` and copy **MailSISI.exe** and
-**config.yaml** into it. Keep them together — MailSISI reads and writes
+**config.yaml** into it. Keep them together, as MailSISI reads and writes
 everything (settings, logs, its file record) in this one folder.
 
 ## 2. Get an app password
